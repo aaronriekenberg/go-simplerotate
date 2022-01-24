@@ -123,7 +123,9 @@ func main() {
 			logger.Fatalf("outputFileWriter.Flush error: %v", err)
 		}
 
-		if bytesWritten > maxFileSizeBytes {
+		logger.Printf("outputFileSizeBytes = %v maxFileSizeBytes = %v", outputFileSizeBytes, maxFileSizeBytes)
+
+		if outputFileSizeBytes > maxFileSizeBytes {
 			err = outputFile.Close()
 			if err != nil {
 				logger.Fatalf("outputFileWriter.Close error: %v", err)
