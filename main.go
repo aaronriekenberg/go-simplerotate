@@ -3,12 +3,14 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"os"
+
+	"github.com/gofrs/flock"
 )
 
 const (
 	outputFileName   = "output"
+	lockFileName     = "lock"
 	maxFileSizeBytes = 1 * 1024 * 1024
 	maxOutputFiles   = 10
 )
@@ -19,7 +21,7 @@ type rotationAction struct {
 }
 
 func (rotationAction rotationAction) rotate() {
-	log.Printf("rotate from %v to %v", rotationAction.fromFileName, rotationAction.toFileName)
+	logger.Printf("rotate from %v to %v", rotationAction.fromFileName, rotationAction.toFileName)
 	os.Rename(rotationAction.fromFileName, rotationAction.toFileName)
 }
 
@@ -63,52 +65,68 @@ func rotateOutputFiles() {
 func getOutputFileSizeBytes() uint64 {
 	fileInfo, err := os.Stat(outputFileName)
 	if err != nil {
-		log.Printf("stat error: %v", err)
+		logger.Printf("stat error: %v", err)
 		return 0
 	}
 	return uint64(fileInfo.Size())
 }
 
 func main() {
-	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
 
-	log.Printf("begin main rotationActions = %+v", rotationActions)
+	logger.Printf("begin main rotationActions = %+v", rotationActions)
+
+	if len(os.Args) > 1 {
+		logDirectory := os.Args[1]
+		logger.Printf("logDirectory = %q", logDirectory)
+		err := os.Chdir(logDirectory)
+		if err != nil {
+			logger.Fatalf("os.Chdir error: %v", err)
+		}
+	}
+
+	logger.Printf("before flock")
+	flock := flock.New(lockFileName)
+	err := flock.Lock()
+	if err != nil {
+		logger.Fatalf("flock.Lock error: %v", err)
+	}
+	logger.Printf("after flock")
 
 	outputFileSizeBytes := getOutputFileSizeBytes()
-	log.Printf("outputFileSizeBytes = %v", outputFileSizeBytes)
+	logger.Printf("outputFileSizeBytes = %v", outputFileSizeBytes)
 
 	outputFile, err := os.OpenFile(outputFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		log.Fatalf("error opening output file: %v", err)
+		logger.Fatalf("error opening output file: %v", err)
 	}
 	outputFileWriter := bufio.NewWriter(outputFile)
 
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		bytes := scanner.Bytes()
-		log.Printf("got bytes = %v", bytes)
+		logger.Printf("got bytes = %v", bytes)
 
 		bytesWritten, err := outputFileWriter.Write(bytes)
 		if err != nil {
-			log.Fatalf("outputFileWriter.Write error; %v", err)
+			logger.Fatalf("outputFileWriter.Write error: %v", err)
 		}
 		outputFileSizeBytes += uint64(bytesWritten)
 
 		bytesWritten, err = outputFileWriter.WriteRune('\n')
 		if err != nil {
-			log.Fatalf("outputFileWriter.WriteRune error; %v", err)
+			logger.Fatalf("outputFileWriter.WriteRune error: %v", err)
 		}
 		outputFileSizeBytes += uint64(bytesWritten)
 
 		err = outputFileWriter.Flush()
 		if err != nil {
-			log.Fatalf("outputFileWriter.Flush error; %v", err)
+			logger.Fatalf("outputFileWriter.Flush error: %v", err)
 		}
 
 		if bytesWritten > maxFileSizeBytes {
 			err = outputFile.Close()
 			if err != nil {
-				log.Fatalf("outputFileWriter.Close error; %v", err)
+				logger.Fatalf("outputFileWriter.Close error: %v", err)
 			}
 			outputFileSizeBytes = 0
 
@@ -116,15 +134,15 @@ func main() {
 
 			outputFile, err = os.OpenFile(outputFileName, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644)
 			if err != nil {
-				log.Fatalf("error opening output file: %v", err)
+				logger.Fatalf("error opening output file: %v", err)
 			}
 			outputFileWriter = bufio.NewWriter(outputFile)
 		}
 	}
 
 	if scanner.Err() != nil {
-		log.Printf("scanner error %v", scanner.Err())
+		logger.Printf("scanner error %v", scanner.Err())
 	}
 
-	log.Printf("end main")
+	logger.Printf("end main")
 }
