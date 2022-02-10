@@ -6,6 +6,8 @@ import (
 	"os"
 
 	"github.com/gofrs/flock"
+
+	loggerPackage "github.com/aaronriekenberg/go-simplerotate/logger"
 )
 
 const (
@@ -14,6 +16,8 @@ const (
 	maxFileSizeBytes = 1 * 1024 * 1024
 	maxOutputFiles   = 10
 )
+
+var logger = loggerPackage.GetLogger()
 
 type rotationAction struct {
 	fromFileName string

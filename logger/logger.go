@@ -1,4 +1,4 @@
-package main
+package logger
 
 import (
 	"log"
@@ -32,4 +32,8 @@ func init() {
 	} else {
 		logger = &silentLogger{}
 	}
+}
+
+func GetLogger() LoggerInterface {
+	return logger
 }
