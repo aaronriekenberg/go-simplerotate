@@ -100,10 +100,13 @@ func main() {
 		logger.Fatalf("error opening output file: %v", err)
 	}
 
-	maxBytesToWriteToOutputFile := maxFileSizeBytes - outputFileSizeBytes
-	logger.Printf("before loop maxBytesToWriteToOutputFile = %v", maxBytesToWriteToOutputFile)
-
 	for {
+		maxBytesToWriteToOutputFile := maxFileSizeBytes - outputFileSizeBytes
+		if maxBytesToWriteToOutputFile < 0 {
+			maxBytesToWriteToOutputFile = 0
+		}
+		logger.Printf("before io.CopyN maxBytesToWriteToOutputFile = %v", maxBytesToWriteToOutputFile)
+
 		bytesWritten, err := io.CopyN(outputFile, os.Stdin, maxBytesToWriteToOutputFile)
 
 		if err == io.EOF {
@@ -127,6 +130,6 @@ func main() {
 			logger.Fatalf("error opening output file: %v", err)
 		}
 
-		maxBytesToWriteToOutputFile = maxFileSizeBytes
+		outputFileSizeBytes = 0
 	}
 }
