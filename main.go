@@ -148,5 +148,8 @@ func main() {
 		outputFileSizeBytes = 0
 	}
 
+	logger.Printf("call outputFile.Close")
+	outputFile.Close()
+
 	logger.Printf("end main")
 }
