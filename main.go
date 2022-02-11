@@ -66,6 +66,17 @@ func rotateOutputFiles() {
 	}
 }
 
+func acquireFlock() *flock.Flock {
+	logger.Printf("begin acquireFlock")
+	flock := flock.New(lockFileName)
+	err := flock.Lock()
+	if err != nil {
+		logger.Fatalf("flock.Lock error: %v", err)
+	}
+	logger.Printf("end acquireFlock")
+	return flock
+}
+
 func getOutputFileSizeBytes() int64 {
 	fileInfo, err := os.Stat(outputFileName)
 	if err != nil {
@@ -88,13 +99,8 @@ func main() {
 		}
 	}
 
-	logger.Printf("before flock")
-	flock := flock.New(lockFileName)
-	err := flock.Lock()
-	if err != nil {
-		logger.Fatalf("flock.Lock error: %v", err)
-	}
-	logger.Printf("after flock")
+	flock := acquireFlock()
+	defer flock.Unlock()
 
 	outputFileSizeBytes := getOutputFileSizeBytes()
 	logger.Printf("outputFileSizeBytes = %v", outputFileSizeBytes)
@@ -115,7 +121,7 @@ func main() {
 
 		if err == io.EOF {
 			logger.Printf("io.CopyN returned EOF")
-			os.Exit(0)
+			break
 		} else if err != nil {
 			logger.Fatalf("io.CopyN error: %v", err)
 		}
@@ -136,4 +142,6 @@ func main() {
 
 		outputFileSizeBytes = 0
 	}
+
+	logger.Printf("end main")
 }
