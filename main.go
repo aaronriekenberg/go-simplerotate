@@ -86,6 +86,37 @@ func getOutputFileSizeBytes() int64 {
 	return fileInfo.Size()
 }
 
+func copyInputToOutputFile() error {
+	outputFile, err := os.OpenFile(outputFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return fmt.Errorf("error opening output file: %w", err)
+	}
+	defer outputFile.Close()
+
+	stats, err := outputFile.Stat()
+	if err != nil {
+		return fmt.Errorf("outputFile.Stat error: %w", err)
+	}
+
+	outputFileSizeBytes := stats.Size()
+	maxBytesToWriteToOutputFile := maxFileSizeBytes - outputFileSizeBytes
+	if maxBytesToWriteToOutputFile < 0 {
+		maxBytesToWriteToOutputFile = 0
+	}
+	logger.Printf("maxBytesToWriteToOutputFile = %v", maxBytesToWriteToOutputFile)
+
+	bytesWritten, err := io.CopyN(outputFile, os.Stdin, maxBytesToWriteToOutputFile)
+	if err == io.EOF {
+		logger.Printf("io.CopyN returned EOF")
+		return io.EOF
+	} else if err != nil {
+		return fmt.Errorf("io.CopyN error: %w", err)
+	}
+
+	logger.Printf("end copyInputToOutputFile bytesWritten = %v", bytesWritten)
+	return nil
+}
+
 func main() {
 
 	logger.Printf("begin main rotationActions = %+v", rotationActions)
@@ -108,50 +139,18 @@ func main() {
 	if outputFileSizeBytes >= maxFileSizeBytes {
 		logger.Printf("initial outputFileSizeBytes at max, calling rotateOutputFiles")
 		rotateOutputFiles()
-		outputFileSizeBytes = 0
 	}
-
-	outputFile, err := os.OpenFile(outputFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		logger.Fatalf("error opening output file: %v", err)
-	}
-	// outputFile is reassigned below.
-	// Use an anonymous function to ensure we see the latest value of outputFile when this defer runs.
-	defer func() {
-		logger.Printf("call outputFile.Close")
-		outputFile.Close()
-	}()
 
 	for {
-		maxBytesToWriteToOutputFile := maxFileSizeBytes - outputFileSizeBytes
-		if maxBytesToWriteToOutputFile < 0 {
-			maxBytesToWriteToOutputFile = 0
-		}
-		logger.Printf("before io.CopyN maxBytesToWriteToOutputFile = %v", maxBytesToWriteToOutputFile)
-
-		bytesWritten, err := io.CopyN(outputFile, os.Stdin, maxBytesToWriteToOutputFile)
+		err := copyInputToOutputFile()
 		if err == io.EOF {
-			logger.Printf("io.CopyN returned EOF")
+			logger.Printf("copyInputToOutputFile returned EOF")
 			break
 		} else if err != nil {
-			logger.Fatalf("io.CopyN error: %v", err)
-		}
-
-		logger.Printf("after io.CopyN bytesWritten = %v", bytesWritten)
-
-		err = outputFile.Close()
-		if err != nil {
-			logger.Fatalf("outputFileWriter.Close error: %v", err)
+			logger.Fatalf("copyInputToOutputFile err: %v", err)
 		}
 
 		rotateOutputFiles()
-
-		outputFile, err = os.OpenFile(outputFileName, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644)
-		if err != nil {
-			logger.Fatalf("error opening output file: %v", err)
-		}
-
-		outputFileSizeBytes = 0
 	}
 
 	logger.Printf("end main")
