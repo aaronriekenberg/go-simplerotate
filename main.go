@@ -115,6 +115,12 @@ func main() {
 	if err != nil {
 		logger.Fatalf("error opening output file: %v", err)
 	}
+	// outputFile is reassigned below.
+	// Use an anonymous function to ensure we see the latest value of outputFile when this defer runs.
+	defer func() {
+		logger.Printf("call outputFile.Close")
+		outputFile.Close()
+	}()
 
 	for {
 		maxBytesToWriteToOutputFile := maxFileSizeBytes - outputFileSizeBytes
@@ -147,9 +153,6 @@ func main() {
 
 		outputFileSizeBytes = 0
 	}
-
-	logger.Printf("call outputFile.Close")
-	outputFile.Close()
 
 	logger.Printf("end main")
 }
