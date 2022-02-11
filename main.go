@@ -7,68 +7,16 @@ import (
 
 	"github.com/gofrs/flock"
 
+	"github.com/aaronriekenberg/go-simplerotate/constants"
 	loggerPackage "github.com/aaronriekenberg/go-simplerotate/logger"
-)
-
-const (
-	outputFileName   = "output"
-	lockFileName     = "lock"
-	maxFileSizeBytes = 1 * 1024 * 1024
-	maxOutputFiles   = 10
+	"github.com/aaronriekenberg/go-simplerotate/rotation"
 )
 
 var logger = loggerPackage.GetLogger()
 
-type rotationAction struct {
-	fromFileName string
-	toFileName   string
-}
-
-func (rotationAction rotationAction) rotate() {
-	logger.Printf("rotate from %v to %v", rotationAction.fromFileName, rotationAction.toFileName)
-	os.Rename(rotationAction.fromFileName, rotationAction.toFileName)
-}
-
-func buildRotationActions() []rotationAction {
-	if maxOutputFiles <= 1 {
-		return nil
-	}
-
-	buildFileName := func(fileIndex int) string {
-		switch fileIndex {
-		case 0:
-			return outputFileName
-		default:
-			return fmt.Sprintf("%v.%v", outputFileName, fileIndex)
-		}
-	}
-
-	rotationActions := make([]rotationAction, 0, maxOutputFiles-1)
-	for i := maxOutputFiles - 1; i > 0; i-- {
-		fromFileName := buildFileName(i - 1)
-		toFileName := buildFileName(i)
-		rotationActions = append(rotationActions,
-			rotationAction{
-				fromFileName: fromFileName,
-				toFileName:   toFileName,
-			},
-		)
-	}
-
-	return rotationActions
-}
-
-var rotationActions = buildRotationActions()
-
-func rotateOutputFiles() {
-	for _, action := range rotationActions {
-		action.rotate()
-	}
-}
-
 func acquireFlock() *flock.Flock {
-	logger.Printf("begin acquireFlock")
-	flock := flock.New(lockFileName)
+	logger.Printf("begin acquireFlock lockFileName = %q", constants.LockFileName)
+	flock := flock.New(constants.LockFileName)
 	err := flock.Lock()
 	if err != nil {
 		logger.Fatalf("flock.Lock error: %v", err)
@@ -84,7 +32,7 @@ func acquireFlock() *flock.Flock {
 func copyInputToOutputFile() error {
 	logger.Printf("begin copyInputToOutputFile")
 
-	outputFile, err := os.OpenFile(outputFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	outputFile, err := os.OpenFile(constants.OutputFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return fmt.Errorf("error opening output file: %w", err)
 	}
@@ -97,12 +45,12 @@ func copyInputToOutputFile() error {
 
 	outputFileSizeBytes := stats.Size()
 	logger.Printf("outputFileSizeBytes = %v", outputFileSizeBytes)
-	if outputFileSizeBytes >= maxFileSizeBytes {
+	if outputFileSizeBytes >= constants.MaxFileSizeBytes {
 		logger.Printf("outputFileSizeBytes >= maxFileSizeBytes")
 		return nil
 	}
 
-	maxBytesToWriteToOutputFile := maxFileSizeBytes - outputFileSizeBytes
+	maxBytesToWriteToOutputFile := constants.MaxFileSizeBytes - outputFileSizeBytes
 	logger.Printf("maxBytesToWriteToOutputFile = %v", maxBytesToWriteToOutputFile)
 
 	bytesWritten, err := io.CopyN(outputFile, os.Stdin, maxBytesToWriteToOutputFile)
@@ -119,7 +67,7 @@ func copyInputToOutputFile() error {
 
 func main() {
 
-	logger.Printf("begin main rotationActions = %+v", rotationActions)
+	logger.Printf("begin main")
 
 	if len(os.Args) > 1 {
 		logDirectory := os.Args[1]
@@ -142,7 +90,7 @@ func main() {
 			logger.Fatalf("copyInputToOutputFile err: %v", err)
 		}
 
-		rotateOutputFiles()
+		rotation.RotateOutputFiles()
 	}
 
 	logger.Printf("end main")
