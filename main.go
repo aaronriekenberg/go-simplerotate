@@ -8,11 +8,11 @@ import (
 	"github.com/gofrs/flock"
 
 	"github.com/aaronriekenberg/go-simplerotate/constants"
-	loggerPackage "github.com/aaronriekenberg/go-simplerotate/logger"
+	"github.com/aaronriekenberg/go-simplerotate/logging"
 	"github.com/aaronriekenberg/go-simplerotate/rotation"
 )
 
-var logger = loggerPackage.GetLogger()
+var logger = logging.GetLogger()
 
 func acquireFlock() *flock.Flock {
 	logger.Printf("begin acquireFlock lockFileName = %q", constants.LockFileName)

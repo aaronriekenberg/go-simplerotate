@@ -5,10 +5,10 @@ import (
 	"os"
 
 	"github.com/aaronriekenberg/go-simplerotate/constants"
-	loggerPackage "github.com/aaronriekenberg/go-simplerotate/logger"
+	"github.com/aaronriekenberg/go-simplerotate/logging"
 )
 
-var logger = loggerPackage.GetLogger()
+var logger = logging.GetLogger()
 
 type rotationAction struct {
 	fromFileName string
