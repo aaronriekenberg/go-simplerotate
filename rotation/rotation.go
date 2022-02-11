@@ -25,13 +25,18 @@ func buildRotationActions() []rotationAction {
 		return nil
 	}
 
+	fileNameCache := make(map[int]string)
+	fileNameCache[0] = constants.OutputFileName
+
 	buildFileName := func(fileIndex int) string {
-		switch fileIndex {
-		case 0:
-			return constants.OutputFileName
-		default:
-			return fmt.Sprintf("%v.%v", constants.OutputFileName, fileIndex)
+		fileName, ok := fileNameCache[fileIndex]
+		if ok {
+			return fileName
 		}
+
+		fileName = fmt.Sprintf("%v.%v", constants.OutputFileName, fileIndex)
+		fileNameCache[fileIndex] = fileName
+		return fileName
 	}
 
 	rotationActions := make([]rotationAction, 0, constants.MaxOutputFiles-1)
