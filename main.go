@@ -77,16 +77,13 @@ func acquireFlock() *flock.Flock {
 	return flock
 }
 
-func getOutputFileSizeBytes() int64 {
-	fileInfo, err := os.Stat(outputFileName)
-	if err != nil {
-		logger.Printf("stat error: %v", err)
-		return 0
-	}
-	return fileInfo.Size()
-}
-
+// Similar to io.Copy:
+// Returns nil when max bytes have been written to output file and need to rotate.
+// Returns io.EOF when EOF is read from input.
+// Otherwise returns non-nil error.
 func copyInputToOutputFile() error {
+	logger.Printf("begin copyInputToOutputFile")
+
 	outputFile, err := os.OpenFile(outputFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return fmt.Errorf("error opening output file: %w", err)
@@ -99,10 +96,13 @@ func copyInputToOutputFile() error {
 	}
 
 	outputFileSizeBytes := stats.Size()
-	maxBytesToWriteToOutputFile := maxFileSizeBytes - outputFileSizeBytes
-	if maxBytesToWriteToOutputFile < 0 {
-		maxBytesToWriteToOutputFile = 0
+	logger.Printf("outputFileSizeBytes = %v", outputFileSizeBytes)
+	if outputFileSizeBytes >= maxFileSizeBytes {
+		logger.Printf("outputFileSizeBytes >= maxFileSizeBytes")
+		return nil
 	}
+
+	maxBytesToWriteToOutputFile := maxFileSizeBytes - outputFileSizeBytes
 	logger.Printf("maxBytesToWriteToOutputFile = %v", maxBytesToWriteToOutputFile)
 
 	bytesWritten, err := io.CopyN(outputFile, os.Stdin, maxBytesToWriteToOutputFile)
@@ -132,14 +132,6 @@ func main() {
 
 	flock := acquireFlock()
 	defer flock.Unlock()
-
-	outputFileSizeBytes := getOutputFileSizeBytes()
-	logger.Printf("initial outputFileSizeBytes = %v", outputFileSizeBytes)
-
-	if outputFileSizeBytes >= maxFileSizeBytes {
-		logger.Printf("initial outputFileSizeBytes at max, calling rotateOutputFiles")
-		rotateOutputFiles()
-	}
 
 	for {
 		err := copyInputToOutputFile()
