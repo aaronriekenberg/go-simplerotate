@@ -103,7 +103,13 @@ func main() {
 	defer flock.Unlock()
 
 	outputFileSizeBytes := getOutputFileSizeBytes()
-	logger.Printf("outputFileSizeBytes = %v", outputFileSizeBytes)
+	logger.Printf("initial outputFileSizeBytes = %v", outputFileSizeBytes)
+
+	if outputFileSizeBytes >= maxFileSizeBytes {
+		logger.Printf("initial outputFileSizeBytes at max, calling rotateOutputFiles")
+		rotateOutputFiles()
+		outputFileSizeBytes = 0
+	}
 
 	outputFile, err := os.OpenFile(outputFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
