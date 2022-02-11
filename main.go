@@ -31,7 +31,7 @@ func (rotationAction rotationAction) rotate() {
 
 func buildRotationActions() []rotationAction {
 	if maxOutputFiles <= 1 {
-		return []rotationAction{}
+		return nil
 	}
 
 	buildFileName := func(fileIndex int) string {
@@ -118,7 +118,6 @@ func main() {
 		logger.Printf("before io.CopyN maxBytesToWriteToOutputFile = %v", maxBytesToWriteToOutputFile)
 
 		bytesWritten, err := io.CopyN(outputFile, os.Stdin, maxBytesToWriteToOutputFile)
-
 		if err == io.EOF {
 			logger.Printf("io.CopyN returned EOF")
 			break
