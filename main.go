@@ -14,15 +14,16 @@ import (
 
 var logger = logging.GetLogger()
 
-func acquireFlock() *flock.Flock {
+func acquireFlock() (*flock.Flock, error) {
 	logger.Printf("begin acquireFlock lockFileName = %q", constants.LockFileName)
+
 	flock := flock.New(constants.LockFileName)
-	err := flock.Lock()
-	if err != nil {
-		logger.Fatalf("flock.Lock error: %v", err)
+	if err := flock.Lock(); err != nil {
+		return nil, fmt.Errorf("flock.Lock error: %w", err)
 	}
+
 	logger.Printf("end acquireFlock")
-	return flock
+	return flock, nil
 }
 
 // Similar to io.CopyN:
@@ -72,14 +73,16 @@ func main() {
 	if len(os.Args) > 1 {
 		logDirectory := os.Args[1]
 		logger.Printf("logDirectory = %q", logDirectory)
-		err := os.Chdir(logDirectory)
-		if err != nil {
+		if err := os.Chdir(logDirectory); err != nil {
 			logger.Fatalf("os.Chdir error: %v", err)
 		}
 	}
 
-	flock := acquireFlock()
-	defer flock.Unlock()
+	if flock, err := acquireFlock(); err != nil {
+		logger.Fatalf("acquireFlock err: %v", err)
+	} else {
+		defer flock.Unlock()
+	}
 
 	for {
 		err := copyInputToOutputFile()
