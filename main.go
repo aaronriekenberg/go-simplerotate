@@ -29,7 +29,7 @@ func acquireFlock() (*flock.Flock, error) {
 // Similar to io.CopyN:
 // Returns nil when max bytes have been written to output file and need to rotate.
 // Returns io.EOF when EOF is read from input.
-// Otherwise returns non-nil error.
+// Otherwise returns non-nil error on unexpected error.
 func copyInputToOutputFile() error {
 	logger.Printf("begin copyInputToOutputFile")
 
